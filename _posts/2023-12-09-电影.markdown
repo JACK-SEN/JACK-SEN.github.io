@@ -1,0 +1,10 @@
+---
+layout: post
+title:  "测试"
+date:   2023-12-08 22:45:26 +0800
+categories: jekyll update
+---
+# 教育
+
+1、三傻大闹宝莱坞
+
