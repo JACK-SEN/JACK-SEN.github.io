@@ -1,0 +1,223 @@
+---
+layout: post
+title:  "JAVA-POI-Excel"
+datetime:   2024-01-02 10:27:26
+categories: Excel 
+---
+# Excel数据导出和导入
+
+## 动态生成excel模板
+
+### controller响应
+
+```java
+@RequestMapping("/exportSevereWeatherConfig")
+    @ResponseBody
+    public ResponseEntity<byte[]> exportSevereWeatherConfig(){
+        byte[] excelBytes = severeWeatherConfigService.exportSevereWeatherConfig();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.setContentDispositionFormData("attachment", DateUtils.getTimestamp() +".xlsx");
+        return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
+    }
+```
+
+### service生成
+
+```java
+public byte[] exportSevereWeatherConfig() {
+        List<SevereWeatherType> list = severeWeatherTypeMapper.selectAll();
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            SevereWeatherConfigExportUtil.exportSevereWeatherConfig(workbook,list);
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                workbook.write(outputStream);
+                return outputStream.toByteArray();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+```
+
+excel工具类
+
+```java
+public static void exportSevereWeatherConfig(XSSFWorkbook workbook, List<SevereWeatherType> list) {
+        String[] selections = new String[list.size()];
+        XSSFSheet sheet1 = workbook.createSheet("Sheet1");
+        Row headerRow1 = sheet1.createRow(0);
+        headerRow1.createCell(0).setCellValue("运用所");
+        headerRow1.createCell(1).setCellValue("恶劣天气类型");
+        headerRow1.createCell(2).setCellValue("补充值");
+        XSSFSheet sheet2 = workbook.createSheet("Sheet2");
+        Row headerRow2 = sheet2.createRow(0);
+        sheet2.protectSheet("admin123");
+        headerRow2.createCell(0).setCellValue("字典主键");
+        headerRow2.createCell(1).setCellValue("天气类型");
+        headerRow2.createCell(2).setCellValue("是否补充");
+        headerRow2.createCell(3).setCellValue("补充描述");
+        headerRow2.createCell(4).setCellValue("计算类型");
+        for (int collIndex = 0; collIndex < headerRow2.getLastCellNum(); collIndex++) {
+            int columnWidth = sheet2.getColumnWidth(collIndex);
+            sheet2.setColumnWidth(collIndex,
+                Math.max(columnWidth, headerRow2.getCell(collIndex).toString().length() * 256));
+        }
+        int rowNum = 1;
+        for (int i = 0; i < list.size(); i++) {
+            SevereWeatherType row = list.get(i);
+            Row dataRow = sheet2.createRow(rowNum++);
+            dataRow.createCell(0).setCellValue(row.getId());
+            dataRow.createCell(1).setCellValue(row.getSevereWeatherType());
+            dataRow.createCell(2).setCellValue(row.getSupplementFlag() == 1 ? "是" : "否");
+            dataRow.createCell(3)
+                .setCellValue(StringUtils.isBlank(row.getSupplementInfo()) ? "" : row.getSupplementInfo());
+            dataRow.createCell(4)
+                .setCellValue(Objects.isNull(row.getCalculateType()) ? "" : row.getCalculateType() == 1 ? "小于" : "大于");
+            if (row.getSupplementFlag() == 1) {
+                selections[i] = row.getSevereWeatherType() + row.getSupplementInfo() + "-" + row.getId();
+            } else {
+                selections[i] = row.getSevereWeatherType() + "-" + row.getId();
+            }
+        }
+        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        evaluator.evaluateAll();
+        CellRangeAddressList addressList = new CellRangeAddressList(1, list.size() * 10, 1, 1);
+        DataValidationHelper helper = new XSSFDataValidationHelper(sheet1);
+        DataValidationConstraint constraint = helper.createExplicitListConstraint(selections);
+        DataValidation validation = helper.createValidation(constraint, addressList);
+        validation.setShowPromptBox(true);
+        validation.setShowErrorBox(true);
+        sheet1.addValidationData(validation);
+    }
+
+    public static boolean regxNum(String str) {
+        return str.matches("\\d+(\\.\\d+)?");
+    }
+```
+
+
+
+## excel数据批量导入
+
+### controller响应
+
+```java
+@PostMapping("/importSevereWeatherConfig")
+    @ResponseBody
+    public ResponseEntity<byte[]> importSevereWeatherConfig(@RequestParam("file") MultipartFile file){
+        byte[] excelBytes = severeWeatherConfigService.importSevereWeatherConfig(file);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename="+DateUtils.getTimestamp()+".xlsx");
+        return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
+    }
+```
+
+### service导入
+
+```java
+public byte[] importSevereWeatherConfig(MultipartFile file) {
+        String fileName = file.getOriginalFilename();
+        if(null == fileName  || !".xlsx".equals(fileName.substring(fileName.lastIndexOf(".")))){
+            throw new RuntimeException("文件格式不对");
+        }
+        try(XSSFWorkbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Row headerRow = sheet.getRow(0);
+            Cell headerRowCell3 = headerRow.createCell(3);
+            headerRowCell3.setCellValue("结果");
+            Cell headerRowCell4 = headerRow.createCell(4);
+            headerRowCell4.setCellValue("详情");
+            int i = 1;
+            for (Row row : sheet) {
+                if(ObjectUtil.isNotEmpty(row)){
+                    i++;
+                }
+            }
+            for (int j = 1; j < i-1; j++) {
+                SevereWeatherConfig severeWeatherConfig = new SevereWeatherConfig();
+                severeWeatherConfig.setId(IdUtil.fastSimpleUUID().toUpperCase());
+                Row row = sheet.getRow(j);
+                Cell cell0 = row.getCell(0);
+                cell0.setCellType(CellType.STRING);
+                String deptCode = cell0.getStringCellValue();
+                if(StringUtils.isBlank(deptCode)){
+                    wrongCell(row,false,"运用所不能为空");
+                    continue;
+                }
+                List<MapVo> mapVos = commonDao.selectByDeptCode(deptCode);
+                if(CollectionUtil.isEmpty(mapVos)){
+                    wrongCell(row,false,"运用所不存在");
+                    continue;
+                }
+                severeWeatherConfig.setDeptCode(deptCode);
+                Cell cell1 = row.getCell(1);
+                cell1.setCellType(CellType.STRING);
+                String weatherStr = cell1.getStringCellValue();
+                if(!weatherStr.contains("-")){
+                    wrongCell(row,false,"恶劣天气类型选择错误");
+                    continue;
+                }
+                String[] split = weatherStr.split("-");
+                String weatherId = split[split.length-1];
+                SevereWeatherType severeWeatherType = severeWeatherTypeMapper.selectByPrimaryKey(weatherId);
+                if(ObjectUtil.isEmpty(severeWeatherType)){
+                    wrongCell(row,false,"恶劣天气类型不存在");
+                    continue;
+                }
+                SevereWeatherConfig params = new SevereWeatherConfig();
+                params.setDeptCode(deptCode);
+                params.setSevereWeatherId(weatherId);
+                List<SevereWeatherConfig> severeWeatherConfigs =
+                    severeWeatherConfigMapper.selectByPrimaryKeySelective(params);
+                if(!CollectionUtil.isEmpty(severeWeatherConfigs)){
+                    wrongCell(row,false,deptCode+"已存在当前恶劣天气类型");
+                    continue;
+                }
+                severeWeatherConfig.setSevereWeatherId(weatherId);
+                Cell cell2 = row.getCell(2);
+                cell2.setCellType(CellType.STRING);
+                String weatherValue = cell2.getStringCellValue();
+                if(!SevereWeatherConfigExportUtil.regxNum(weatherValue)){
+                    wrongCell(row,false,"补充值必须为数字类型");
+                    continue;
+                }
+                if(severeWeatherType.getSupplementFlag()==1){
+                    if(StringUtils.isBlank(weatherValue)){
+                        wrongCell(row,false,severeWeatherType.getSevereWeatherType()+"需要补充值");
+                    }else {
+                        wrongCell(row,true,"");
+                        severeWeatherConfig.setSevereWeatherValue(Double.valueOf(weatherValue));
+                        severeWeatherConfigMapper.insert(severeWeatherConfig);
+                    }
+                }else {
+                    if(!StringUtils.isBlank(weatherValue)){
+                        wrongCell(row,true,severeWeatherType.getSevereWeatherType()+"不需要补充值，数据录入暂未添加该补充值");
+                    }
+                    severeWeatherConfigMapper.insert(severeWeatherConfig);
+                }
+            }
+            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+                workbook.write(outputStream);
+                return outputStream.toByteArray();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private static void wrongCell(Row row,boolean flag ,String msg){
+        Cell resultCell = row.createCell(3);
+        Cell errCell = row.createCell(4);
+        if(flag){
+            resultCell.setCellValue("成功");
+            errCell.setCellValue(msg);
+        }else {
+            resultCell.setCellValue("失败");
+            errCell.setCellValue(msg);
+        }
+    }
+```
+
