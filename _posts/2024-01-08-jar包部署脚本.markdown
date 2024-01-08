@@ -1,0 +1,65 @@
+---
+layout: post
+title:  "Jar包部署Linux脚本"
+datetime:   2024-01-08 10:27:26
+categories: shell
+---
+# Jar包部署脚本
+
+shell代码-1
+
+```sh
+#!/bin/bash
+
+JAR_FILE="/usr/local/ydzb-qms-video.jar"
+PROCESS_NAME="ydzb-qms-video"
+LOG_FILE="/usr/local/log/qms.log"
+
+is_process_running() {
+  local count=$(ps aux | grep -v grep | grep "$PROCESS_NAME" | grep -c "$JAR_FILE")
+  echo "Debug: count from sh command: $count" >> "$LOG_FILE"
+  echo "$count"
+}
+
+start_process() {
+  nohup java -jar "$JAR_FILE" >> "$LOG_FILE" 2>&1 &
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - 启动 $PROCESS_NAME 进程" >> "$LOG_FILE"
+}
+
+if [ $(is_process_running) -eq 0 ]; then
+  start_process
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $PROCESS_NAME 进程已经在运行" >> "$LOG_FILE"
+fi
+```
+
+shell代码-2
+
+```sh
+#!/bin/bash
+
+JAR_FILE="/usr/local/ydzb-qms-video.jar"
+PROCESS_NAME="ydzb-qms-video"
+LOG_FILE="/usr/local/log/qms.log"
+
+# 检测进程是否在运行
+is_process_running() {
+  local count=$(ps aux | grep -v grep | grep "$PROCESS_NAME" | wc -l)
+  echo "Debug: count from sh command: $count" >> "$LOG_FILE"
+  echo "$count"
+}
+
+# 启动进程
+start_process() {
+  nohup java -jar "$JAR_FILE" >> "$LOG_FILE" 2>&1 &
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - 启动 $PROCESS_NAME 进程" >> "$LOG_FILE"
+}
+
+# 主逻辑
+if [ $(is_process_running) -eq 0 ]; then
+  start_process
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - $PROCESS_NAME 进程已经在运行" >> "$LOG_FILE"
+fi
+```
+
