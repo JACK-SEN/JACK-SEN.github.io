@@ -1,0 +1,68 @@
+---
+layout: post
+title:  "Soap调用"
+datetime:   2024-01-08 10:27:26
+categories: Soap调用
+---
+# Soap调用
+
+HttpClient调用方式
+
+```java
+public static String recognition(String featureData){
+        String url = ResourceBundle.getBundle("config").getString("FACE_RECOGNITION_URL");
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpPost httpPost = new HttpPost(url);
+            httpPost.setHeader("Content-Type", "text/xml;charset=utf-8");
+            httpPost.setHeader("SOAPAction", "http://tempuri.org/GetMatchingStuffIDBS");
+            String body = getBody(featureData);
+            log.info("请求体:{}",body);
+            StringEntity entity = new StringEntity(body, StandardCharsets.UTF_8);
+            httpPost.setEntity(entity);
+            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                HttpEntity responseEntity = response.getEntity();
+                if (responseEntity != null) {
+                    String result = EntityUtils.toString(responseEntity, "UTF-8");
+                    log.info("响应结果:{}",result);
+                    return result;
+                }
+            }
+        } catch (Exception e) {
+            throw new BusinessException(BusinessStatus.FAIL, "识别失败" + e.getMessage());
+        }
+        return null;
+    }
+
+
+private static String getBody(String featureData) {
+        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+            + "<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3"
+            + ".org/2001/XMLSchema\" xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\n"
+            + "  <soap:Body>\n"
+            + "    <GetMatchingStuffIDBS xmlns=\"http://tempuri.org/\">\n"
+            + "      <featureDatasStr>" + featureData + "</featureDatasStr>\n"
+            + "    </GetMatchingStuffIDBS>\n"
+            + "  </soap:Body>\n"
+            + "</soap:Envelope>";
+    }
+
+    public static String parseXml(String xmlContent) {
+        /*String xmlContent = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
+            "<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\n" +
+            "  <soap:Body>\n" +
+            "    <RefreshDictResponse xmlns=\"http://tempuri.org/\">\n" +
+            "      <RefreshDictResult />\n" +
+            "    </RefreshDictResponse>\n" +
+            "  </soap:Body>\n" +
+            "</soap:Envelope>";*/
+        Document document = XmlUtil.parseXml(xmlContent);
+        NodeList refreshDictResultNode = document.getElementsByTagName("RefreshDictResult");
+        Node item = refreshDictResultNode.item(0);
+        String refreshDictResult = item.getTextContent();
+        if (refreshDictResult != null && !refreshDictResult.trim().isEmpty()) {
+            return refreshDictResult;
+        }
+        return null;
+    }
+```
+

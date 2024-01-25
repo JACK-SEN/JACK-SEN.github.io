@@ -1,0 +1,109 @@
+---
+layout: post
+title:  "Base64使用"
+datetime:   2024-01-22 10:27:26
+categories: Base64使用
+---
+# Base64使用
+
+## 文件字符串过滤
+
+```java
+//去掉前端传过来的带格式字符串
+public static String base64Process(String base64Str) {
+    if (!ObjectUtils.isEmpty(base64Str)) {
+        String photoBase64 = base64Str.substring(0, 30).toLowerCase();
+        int indexOf = photoBase64.indexOf("base64,");
+        if (indexOf > 0) {
+            base64Str = base64Str.substring(indexOf + 7);
+        }
+        base64Str = base64Str.replaceAll(" ", "+");
+        base64Str = base64Str.replaceAll("\r|\n", "");
+        return base64Str;
+    }
+    return "";
+}
+```
+
+## base64字符串转字节数组
+
+```java
+public static byte[] base64ToBytes(String base64) {
+    if (ObjectUtils.isEmpty(base64)) {
+        return null;
+    }
+    String base64Process = base64Process(base64);
+    byte[] decode = Base64.getDecoder().decode(base64Process);
+    return decode;
+}
+```
+
+## MultipartFile 转base64
+
+```java
+public static String baseFileToString(MultipartFile file)throws IOException {
+    byte[] buffer = file.getBytes();
+    return Base64.getEncoder().encodeToString(buffer);
+}
+```
+
+## 文件转base64
+
+```java
+public static String baseFileToString(File file)throws IOException {
+    FileInputStream imageInputStream = new FileInputStream(file);
+    byte[] buffer = new byte[(int)file.length()];
+    imageInputStream.read(buffer);
+    imageInputStream.close();
+    return Base64.getEncoder().encodeToString(buffer);
+}
+```
+
+## base64转图片
+
+```java
+public static String uploadFile(String encodeFile) throws IOException {
+    byte[] bytes = null;
+    if(encodeFile.contains(",")){
+        String[] split = encodeFile.split(",");
+        bytes = Base64.getMimeDecoder().decode(split[1]);
+    }else {
+        bytes =  Base64.getMimeDecoder().decode(encodeFile);
+    }
+    Path uploadPath = Paths.get(FileConstants.UPLOAD_DIR);
+    String realName = System.currentTimeMillis()+".jpg";
+    Path filePath = uploadPath.resolve(realName);
+    Files.write(filePath, bytes);
+    return FileConstants.UPLOAD_DIR + realName;
+}
+```
+
+## 读取本地加密文件数据
+
+```java
+public static String readEncodeFileUpload(String filePath)throws IOException{
+    File encodeFile = new File(filePath);
+    FileInputStream in = new FileInputStream(encodeFile);
+    byte[] buffer = new byte[(int)encodeFile.length()];
+    int bytesRead = in.read(buffer);
+    return new String(buffer, 0, bytesRead);
+}
+```
+
+## Url中文处理
+
+```java
+public static String urlResolver(String fileUrl) {
+    String dowloadUrl = fileUrl;
+    int index = fileUrl.lastIndexOf("/") + 1;
+    fileUrl = fileUrl.substring(index, fileUrl.length());
+    try {
+        fileUrl = URLEncoder.encode(fileUrl, "UTF-8");
+    } catch (Exception e) {
+        return fileUrl;
+    }
+    dowloadUrl = dowloadUrl.substring(0, index) + fileUrl;
+    return dowloadUrl;
+}
+```
+

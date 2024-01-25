@@ -1,0 +1,82 @@
+---
+layout: post
+title:  "File操作"
+datetime:   2024-01-22 10:27:26
+categories: File操作
+---
+# File操作
+
+## 文件转字节流	
+
+```java
+public static byte[] fileToBytes(File file) {
+    byte[] bytes = null;
+    try {
+        FileInputStream inputStream = new FileInputStream(file);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        int len;
+        byte[] buffer = new byte[1024];
+        while ((len = inputStream.read(buffer)) != -1) {
+            outputStream.write(buffer, 0, len);
+        }
+        bytes = outputStream.toByteArray();
+        inputStream.close();
+        outputStream.close();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return bytes;
+}
+```
+
+## 文件数据写入
+
+```java
+public static void writeValues(byte[] bytes,File file) {
+    try (OutputStream outputStream = new FileOutputStream(file, false)) {
+        outputStream.write(bytes);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+## 读取文件内容
+
+```java
+public static String readValues(File file) {
+    try (InputStream inputStream = new FileInputStream(file)) {
+        byte[] buffer = new byte[1024];
+        int bytesRead = inputStream.read(buffer);
+        if (bytesRead == -1) {
+            return null;
+        }
+        return new String(buffer, 0, bytesRead);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+    return null;
+}
+```
+
+## 创建文件
+
+```java
+public static void mkdir(String path) {
+    File file = new File(path);
+    if (!file.exists()) {
+        boolean mkdirs = file.mkdirs();
+
+    }
+}
+```
+
+## 删除文件
+
+```java
+public static boolean deleteFile(String fileName) {
+    File file = new File(fileName);
+    return file.delete();
+}
+```
+

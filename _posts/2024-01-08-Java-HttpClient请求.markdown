@@ -77,7 +77,7 @@ public static void main(String[] args) throws Exception {
 
 ### GET
 
-发送form表单数据
+#### 发送form表单数据
 
 ```java
  public static JSONObject sendGet(String url, List<NameValuePair> params) {
@@ -98,6 +98,33 @@ public static void main(String[] args) throws Exception {
         return null;
     }
 ```
+
+#### GET发送 Https请求
+
+```java
+public static String sendGetFormData(String sDate) {
+    String url = ResourceBundle.getBundle("site").getString("url");
+    String unitType = ResourceBundle.getBundle("site").getString("unitType");
+    String unitCode = ResourceBundle.getBundle("site").getString("unitCode");
+    String apiUrl = url + "?" + "unitType=" + unitType + "&unitCode=" + unitCode + "&sdate=" + sDate;
+    try {
+        CloseableHttpClient httpClient = HttpClients.custom()
+            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+            .setSSLContext(SSLContextBuilder.create().loadTrustMaterial((chain, authType) -> true).build())
+            .build();
+        HttpGet httpGet = new HttpGet(apiUrl);
+        HttpResponse response = httpClient.execute(httpGet);
+        String json = EntityUtils.toString(response.getEntity());
+        httpClient.close();
+        return json;
+    } catch (Exception e) {
+        LOGGER.error("同步车次站点数据失败:{}", e.getMessage());
+    }
+    return null;
+}
+```
+
+
 
 ### POST
 
@@ -125,7 +152,7 @@ public static JSONObject sendPostParam(String url, List<NameValuePair> params) {
     }
 ```
 
-发送json数据
+#### 发送json数据
 
 ```java
 public static String sendPostJson(String url, String json) {
@@ -147,5 +174,69 @@ public static String sendPostJson(String url, String json) {
     }
 ```
 
+#### Post发送Form-data
 
+```java
+//发送图片文件  和普通form-data数据
+public static void multipartPost(String url,File file, Map<String,String> map){
+    try (CloseableHttpClient httpClient = HttpClients.createDefault()){
+        HttpPost httpPost = new HttpPost(url);
+        MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+        builder.setCharset(StandardCharsets.UTF_8);
+        builder.addBinaryBody("file",file,ContentType.DEFAULT_BINARY,file.getName());
+        Set<Map.Entry<String, String>> entrySet = map.entrySet();
+        for (Map.Entry<String, String> entry : entrySet) {
+            builder.addTextBody(entry.getKey(), entry.getValue());
+        }
+        HttpEntity httpEntity = builder.build();
+        httpPost.setEntity(httpEntity);
+        try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+            HttpEntity responseEntity = response.getEntity();
+            if (responseEntity != null) {
+                String responseStr = EntityUtils.toString(responseEntity);
+                JSONObject jsonObject = JSON.parseObject(responseStr);
+                System.out.println(jsonObject);
+            }
+        }
+    }catch (Exception e){
+        log.error("multipartPost发送数据失败:{}", e.getMessage());
+    }
+}
+```
+
+## 公共抽取
+
+```java
+public static String sendPostFormData(String url, List<NameValuePair> nameValuePairList) {
+    try (CloseableHttpClient client = HttpClients.createDefault()) {
+        HttpPost httpPost = createHttpPost(url, nameValuePairList);
+        try (CloseableHttpResponse response = client.execute(httpPost)) {
+            return EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+        }
+    } catch (IOException e) {
+        LOGGER.error("获取天气信息接口失败. Exception: {}", e.getMessage());
+        return null;
+    }
+}
+
+private static HttpPost createHttpPost(String url, List<NameValuePair> nameValuePairList) {
+    HttpPost httpPost = new HttpPost(url);
+    RequestConfig requestConfig = RequestConfig.custom()
+        .setSocketTimeout(5000)
+        .setConnectTimeout(5000)
+        .build();
+    httpPost.setConfig(requestConfig);
+    try {
+        StringEntity entity = new UrlEncodedFormEntity(nameValuePairList, StandardCharsets.UTF_8);
+        httpPost.setHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded;charset=utf-8");
+        httpPost.setEntity(entity);
+        httpPost.setHeader(HttpHeaders.ACCEPT, "*/*;charset=utf-8");
+        httpPost.setHeader("requestId", IdUtil.fastSimpleUUID());
+        httpPost.setHeader("tokenId", IdUtil.fastSimpleUUID());
+    } catch (Exception e) {
+        LOGGER.error("创建HTTP POST请求失败. Exception: {}", e.getMessage());
+    }
+    return httpPost;
+}
+```
 
