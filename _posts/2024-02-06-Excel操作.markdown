@@ -1,0 +1,65 @@
+---
+layout: post
+title:  "Excel操作"
+datetime:   2024-01-08 10:27:26
+categories: Excel操作
+---
+# Excel操作
+
+数据表导出excel格式
+
+```java
+@RequestMapping("/upload")
+public ResponseEntity<byte[]> upload(@RequestParam("file") MultipartFile file){
+    byte[] excelBytes = siteService.upload(file);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+    headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename="+ DateUtils.getTimestamp()+".xlsx");
+    return new ResponseEntity<>(excelBytes, headers, HttpStatus.OK);
+}
+
+public byte[] upload(MultipartFile file) {
+    String fileName = file.getOriginalFilename();
+    if(null == fileName  || !".xlsx".equals(fileName.substring(fileName.lastIndexOf(".")))){
+        throw new RuntimeException("文件格式不对");
+    }
+    try(XSSFWorkbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        Sheet sheet = workbook.getSheetAt(0);
+        Row headerRow = sheet.getRow(0);
+        Cell headerRowCell3 = headerRow.createCell(4);
+        headerRowCell3.setCellValue("解析比对结果");
+        int i = 1;
+        for (Row row : sheet) {
+            if(ObjectUtil.isNotEmpty(row)){
+                i++;
+            }
+        }
+        for (int j = 1; j < i-1; j++) {
+            Row row = sheet.getRow(j);
+            Cell cell1 = row.getCell(1);
+            cell1.setCellType(CellType.STRING);
+            QueryWrapper<Site> queryWrapper = new QueryWrapper<>();
+            queryWrapper.likeRight("LABEL", cell1.getStringCellValue());
+            List<Site> sites = this.baseMapper.selectList(queryWrapper);
+            wrongCell(row, !CollectionUtils.isEmpty(sites));
+        }
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }catch (Exception e){
+        e.printStackTrace();
+    }
+    return null;
+}
+
+private static void wrongCell(Row row,boolean flag){
+    Cell resultCell = row.createCell(4);
+    if(flag){
+        resultCell.setCellValue("存在");
+    }else {
+        resultCell.setCellValue("不存在");
+    }
+}
+```
+
