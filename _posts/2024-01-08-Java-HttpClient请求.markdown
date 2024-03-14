@@ -33,6 +33,19 @@ public static String sendRestApi(String apiUrl) {
     }
     return null;
 }
+//普通请求，直接传url
+
+//带有参数时
+String deptCode = "015";
+Date beginTime = new SimpleDateFormat("yyyy-MM-dd").parse("2023-01-01");
+Date endTime = new SimpleDateFormat("yyyy-MM-dd").parse("2024-03-01");
+String encodedDeptCode = URLEncoder.encode(deptCode, "UTF-8");
+String encodedBeginTime = URLEncoder.encode(new SimpleDateFormat("yyyy-MM-dd").format(beginTime), "UTF-8");
+String encodedEndTime = URLEncoder.encode(new SimpleDateFormat("yyyy-MM-dd").format(endTime), "UTF-8");
+//通过占位符将将参数传递，形成api+param的方式
+String param = String.format("/dptUtilizationRateController/getUtilizationRateList?deptCode=%s&beginTime=%s&endTime=%s",encodedDeptCode, encodedBeginTime, encodedEndTime);
+String url = "http://xxxx:xxxx";
+String jsonString = DptHttpClientUtils.sendRestApi(url+param);
 ```
 
 ### POST
