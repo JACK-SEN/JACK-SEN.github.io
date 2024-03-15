@@ -217,6 +217,192 @@ public static void multipartPost(String url,File file, Map<String,String> map){
 }
 ```
 
+#### 发送soap数据
+
+```java
+package com.ydzb.dzjb.util;
+
+import cn.hutool.core.util.XmlUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import java.nio.charset.StandardCharsets;
+
+@Slf4j
+public class SoapUtils {
+    /**
+     * 适用于单标签结果数据
+     * */
+    public static String parseXml(String xmlContent,String targetName) {
+        Document document = XmlUtil.parseXml(xmlContent);
+        NodeList refreshDictResultNode = document.getElementsByTagName(targetName);
+        Node item = refreshDictResultNode.item(0);
+        String refreshDictResult = item.getTextContent();
+        if (refreshDictResult != null && !refreshDictResult.trim().isEmpty()) {
+            return refreshDictResult;
+        }
+        return null;
+    }
+    /**
+     * 通用调用
+     * */
+    public static String recognition(String url,String body){
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpPost httpPost = new HttpPost(url);
+            httpPost.setHeader("Content-Type", "text/xml;charset=utf-8");
+            httpPost.setEntity(new StringEntity(body, StandardCharsets.UTF_8));
+            log.info("请求报文:{}",body);
+            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
+                HttpEntity responseEntity = response.getEntity();
+                if (responseEntity != null) {
+                    String result = EntityUtils.toString(responseEntity, "UTF-8");
+                    log.info("响应结果:{}",result);
+                    return result;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+package com.ydzb.dzjb.util;
+import lombok.extern.slf4j.Slf4j;
+/**
+ * soap报文获取
+ * */
+@Slf4j
+public class SoapBodyUtils {
+    /**
+     * 5T运用率报文
+     * */
+    public static String getUtilizationRateSoap(String beginTime,String endTime,String deptCode,String accessId){
+        return "<soap:Envelope xmlns:soap=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:tem=\"http://tempuri.org/\">\n"
+                + "   <soap:Header/>\n"
+                + "   <soap:Body>\n"
+                + "      <tem:GetUtilizationRateList>\n"
+                + "         <tem:beginTime>" + beginTime + "</tem:beginTime>\n"
+                + "         <tem:endTime>" + endTime + "</tem:endTime>\n"
+                + "         <tem:deptCode>" + deptCode + "</tem:deptCode>\n"
+                + "         <tem:AccessID>" + accessId + "</tem:AccessID>\n"
+                + "      </tem:GetUtilizationRateList>\n"
+                + "   </soap:Body>\n"
+                + "</soap:Envelope>";
+    }
+}
+//调用示例
+@GetMapping("/list")
+public Object list() {
+    try {
+        // 请求参数
+        String url = CommonUtils.getConfigValue("utilizationRateUrl");
+        String deptCode = CommonUtils.getConfigValue("deptCode");
+        String beginTime = CommonUtils.getConfigValue("beginTime");
+        String endTime = CommonUtils.getConfigValue("endTime");
+        String accessId = CommonUtils.getConfigValue("accessId");
+        String xmlContent = SoapUtils.recognition(url, SoapBodyUtils.getUtilizationRateSoap(beginTime, endTime, deptCode, accessId));
+        String jsonString = SoapUtils.parseXml(xmlContent, "GetUtilizationRateListResult");
+        return JSON.parseArray(jsonString, UtilizationRate.class);
+    } catch (Exception e) {
+        return e.getMessage();
+    }
+}
+
+```
+
+完成案例备份
+
+```java
+package com.ydzb.dzjb.util;
+
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.*;
+import java.util.ResourceBundle;
+
+/**
+ * @author lth
+ * @date 2024/3/14
+ */
+public class UtilizationRateUtils {
+
+    /**
+     * 5T运用率接口调用
+     * */
+    public static String getUtilizationData(){
+        // 请求参数
+        String wsUrl = CommonUtils.getConfigValue("utilizationRateUrl");
+        String deptCode = CommonUtils.getConfigValue("deptCode");
+        String beginTime = CommonUtils.getConfigValue("beginTime");
+        String endTime = CommonUtils.getConfigValue("endTime");
+        String accessId = CommonUtils.getConfigValue("accessId");
+        // 构建SOAP请求
+        String soapRequest = "<soap:Envelope xmlns:soap=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:tem=\"http://tempuri.org/\">\n"
+                + "   <soap:Header/>\n"
+                + "   <soap:Body>\n"
+                + "      <tem:GetUtilizationRateList>\n"
+                + "         <tem:beginTime>" + beginTime + "</tem:beginTime>\n"
+                + "         <tem:endTime>" + endTime + "</tem:endTime>\n"
+                + "         <tem:deptCode>" + deptCode + "</tem:deptCode>\n"
+                + "         <tem:AccessID>" + accessId + "</tem:AccessID>\n"
+                + "      </tem:GetUtilizationRateList>\n"
+                + "   </soap:Body>\n"
+                + "</soap:Envelope>";
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpPost httpPost = new HttpPost(wsUrl);
+            httpPost.setHeader("Content-Type", "text/xml");
+            httpPost.setEntity(new StringEntity(soapRequest, "UTF-8"));
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            if (response.getStatusLine().getStatusCode() == 200) {
+                System.out.println("请求成功，开始获取响应内容");
+                String responseString = EntityUtils.toString(response.getEntity());
+                DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                DocumentBuilder builder = factory.newDocumentBuilder();
+                Document doc = builder.parse(new InputSource(new StringReader(responseString)));
+                NodeList nodeList = doc.getElementsByTagName("GetUtilizationRateListResult");
+                if (nodeList.getLength() > 0) {
+                    Node item = nodeList.item(0);
+                    Element element = (Element) item;
+                    String textContent = element.getTextContent();
+                    System.out.println("GetUtilizationRateListResult 内容：" + textContent);
+                    return textContent;
+                }
+            } else {
+                throw new RuntimeException("请求失败：" + response.getStatusLine().getStatusCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+
+```
+
+
+
+
+
 ## 公共抽取
 
 ```java
