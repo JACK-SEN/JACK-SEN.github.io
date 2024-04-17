@@ -2,6 +2,7 @@
 layout: post
 title:  "springboot配置文件"
 date:   2024-04-17 13:52:16
+categories: Java
 ---
 # Springboot配置文件
 
@@ -163,7 +164,18 @@ spring:
             <artifactId>activiti-spring-boot-starter</artifactId>
             <version>7.0.0.GA</version>
         </dependency>-->
-        <!--test-->
+    	<!--httpclient-->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
+        </dependency>
+    	<!--kafka-->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+    	<!--test-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
