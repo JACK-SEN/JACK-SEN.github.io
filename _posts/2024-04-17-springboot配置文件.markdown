@@ -12,8 +12,15 @@ categories: Java
 #启动端口
 server:
   port: 9527
-#激活配置文件
+  tomcat:
+    max-http-post-size: 500MB
+#文件上传最大限制
 spring:
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 800MB
+#激活配置文件
   profiles:
     active: pro
 #mybatis-plus配置加载和删除标识    
@@ -203,4 +210,6 @@ spring:
         </plugins>
     </build>
 ```
+
+
 
