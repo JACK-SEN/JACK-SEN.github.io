@@ -80,3 +80,101 @@ public static boolean deleteFile(String fileName) {
 }
 ```
 
+## 文件大小
+
+<!--文件计算-->
+
+<!--1KB = 1024B-->
+<!--1MB = 1024KB = 1048576B-->
+<!--1GB = 1024MB = 1048576KB = 1073741824B-->
+<!--1TB = 1024GB = 1048576MB = 1073741824KB = 1099511627776B-->
+<!--1PB = 1024TB = 1048576GB = 1073741824MB = 1099511627776KB = 1125899906842624B-->
+
+```java
+/**
+     * 获取文件大小并转换单位
+     * @param multipartFile multipart格式文件传入
+     * @return
+     */
+    public static String getFileSize(MultipartFile multipartFile){
+        long fileSize = multipartFile.getSize();
+        System.out.println("fileSize: "+fileSize);
+        DecimalFormat df = new DecimalFormat("#.00");
+        String fileSizeString = "";
+        if (fileSize == 0) {
+            fileSizeString = "0B";
+        }else if (fileSize < 1024) {
+            fileSizeString = df.format((double) fileSize) + "B";
+        } else if (fileSize < 1048576) {
+            fileSizeString = df.format((double) fileSize / 1024) + "KB";
+        } else if (fileSize < 1073741824) {
+            fileSizeString = df.format((double) fileSize / 1048576) + "MB";
+        } else {
+            fileSizeString = df.format((double) fileSize / 1073741824) + "GB";
+        }
+        System.out.println("fileSizeString: "+fileSizeString);
+        return fileSizeString;
+    }
+
+    /**
+     * 获取文件大小并转换单位
+     * @param filePath 本地文件路径
+     * @return
+     */
+    public static String getFileSize(String filePath){
+        File file = new File(filePath);
+        String fileSizeString = "";
+            long fileSize = file.length();
+            System.out.println("fileSize: "+fileSize);
+            DecimalFormat df = new DecimalFormat("#.00");
+            if (fileSize == 0) {
+                fileSizeString = "0B";
+            }else if (fileSize < 1024) {
+                fileSizeString = df.format((double) fileSize) + "B";
+            } else if (fileSize < 1048576) {
+                fileSizeString = df.format((double) fileSize / 1024) + "KB";
+            } else if (fileSize < 1073741824) {
+                fileSizeString = df.format((double) fileSize / 1048576) + "MB";
+            } else if (fileSize < 1099511627776L) {
+                fileSizeString = df.format((double) fileSize / 1073741824) + "GB";
+            } /*else if (fileSize < 1125899906842624L) {
+                fileSizeString = df.format((double) fileSize / 1099511627776L) + "TB";
+            } else {
+                fileSizeString = df.format((double) fileSize / 1125899906842624L) + "PB";
+            }*/
+        System.out.println("fileSizeString: "+fileSizeString);
+        return fileSizeString;
+    }
+```
+
+```java
+/**
+ * 计算Base64字符串文件的大小（单位：KB）
+ *
+ * @param base64String Base64字符串
+ * @return 文件大小（单位：KB）
+ */
+public static double base64FileSizeKB(String base64String) {
+    // 校验是否为Base64字符串
+    if (!Base64Utils.isBase64(base64String)) {
+        throw new IllegalArgumentException("参数不是Base64字符串");
+    }
+
+    // 清除Base64字符串中的头部信息（data:image/*;base64,）
+    int dataPos = base64String.indexOf(",");
+    if (dataPos < 0) {
+        throw new IllegalArgumentException("无效的Base64字符串");
+    }
+    base64String = base64String.substring(dataPos + 1);
+
+    // 将Base64字符串转换为字节数组
+    byte[] bytes = Base64.getDecoder().decode(base64String);
+
+    // 计算文件大小（单位：字节）
+    long fileSizeInBytes = bytes.length;
+
+    // 转换单位并返回结果
+    return fileSizeInBytes / 1024.0;
+}
+```
+
