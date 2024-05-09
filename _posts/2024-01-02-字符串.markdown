@@ -25,5 +25,19 @@ public static boolean isNumeric(String str) {
 }
 ```
 
+## 字符串转数字保留两位小数
+
+```java
+/**
+  * 数字格式化 -保留两位小数
+  * */
+public static String formatStr(String str){
+if(StringUtils.isBlank(str)){
+    return "0.00";
+}
+return String.format("%.2f",Double.parseDouble(str) * 100);
+}
+```
+
 
 
