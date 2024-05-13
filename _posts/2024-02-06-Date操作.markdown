@@ -16,3 +16,24 @@ public static int getTimestamp() {
 }
 ```
 
+## 开始与结束时间
+
+```java
+public static Date dateFormatStart(Date date) {
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(date);
+    calendar.set(Calendar.HOUR_OF_DAY, 0);
+    calendar.set(Calendar.MINUTE, 0);
+    calendar.set(Calendar.SECOND, 0);
+    return calendar.getTime();
+}
+public static Date dateFormatEnd(Date date){
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(date);
+    calendar.set(Calendar.HOUR_OF_DAY,23);
+    calendar.set(Calendar.MINUTE,59);
+    calendar.set(Calendar.SECOND,59);
+    return calendar.getTime();
+}
+```
+
