@@ -1,0 +1,226 @@
+---
+layout: post
+title:  "Redis"
+datetime:   2024-01-08 10:27:26
+categories: redis
+---
+# Redis
+
+## redis缓存锁控制
+
+```java
+并发请求处理
+@GetMapping("/monthly/trend")
+    @ApiOperation("获取数据汇聚月度变化趋势")
+    public R monthlyTrend() {
+        return getDataWithCache(DataManagementConstant.MONTHLY_TREND_DATA,
+            idcCockpitService::searchMonthlyTrend);
+    }
+
+    private <T> R getDataWithCache(String cacheKey, Supplier<T> dataSupplier) {
+        if (redisServerTemplate.exists(cacheKey)) {
+            return R.success(redisServerTemplate.get(cacheKey));
+        }
+
+        lock.lock();
+        try {
+            if (redisServerTemplate.exists(cacheKey)) {
+                return R.success(redisServerTemplate.get(cacheKey));
+            } else {
+                T data = dataSupplier.get();
+                redisServerTemplate.set(cacheKey, data);
+                return R.success(data);
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+```
+
+## redis服务工具
+
+```java
+package com.ydzbinfo.idc.redis.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.DataType;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 字符串操作
+ *
+ * @author lth
+ * @date 2024/7/10
+ */
+@Slf4j
+@Service
+public class RedisServerTemplate {
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+
+    /**
+     * 获取指定 key 的值
+     *
+     * @param key 键
+     * @return 返回 key 的值
+     */
+    public Object get(String key) {
+        return redisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * 获取所有一个或多个给定 key 的值
+     *
+     * @param list Key 集合
+     * @return 值集合
+     */
+    public List<Object> mGet(Collection<String> list) {
+        return redisTemplate.opsForValue().multiGet(list);
+    }
+
+    /**
+     * 设置给定 key 的值（如果 key 已经存在就覆写旧值）
+     *
+     * @param key   键
+     * @param value 值
+     */
+    public void set(String key, Object value) {
+        redisTemplate.opsForValue().set(key, value);
+    }
+
+    /**
+     * 同时设置一个或多个 key-value 对
+     *
+     * @param map 键值集合
+     */
+    public void set(Map<String, Object> map) {
+        redisTemplate.opsForValue().multiSet(map);
+    }
+
+    /**
+     * 设置给定 key 的值，并设置过期时间
+     *
+     * @param key   键
+     * @param value 值
+     * @param time  过期时间(秒)
+     */
+    public void set(String key, Object value, long time) {
+        if (time > 0) {
+            redisTemplate.opsForValue().set(key, value, time, TimeUnit.SECONDS);
+        } else {
+            set(key, value);
+        }
+    }
+
+    /**
+     * 递增
+     *
+     * @param key   键
+     * @param delta 要增加几(大于0)
+     * @return 递增后的值
+     */
+    public Long incr(String key, long delta) {
+        if (delta > 0) {
+            throw new IllegalArgumentException("递减因子必须大于0");
+        }
+        return redisTemplate.opsForValue().increment(key, delta);
+    }
+
+    /**
+     * 递减
+     *
+     * @param key   键
+     * @param delta 要减少几(小于0)
+     * @return 递减后的值
+     */
+    public Long decr(String key, long delta) {
+        if (delta < 0) {
+            throw new IllegalArgumentException("递减因子必须小于0");
+        }
+        return redisTemplate.opsForValue().increment(key, -delta);
+    }
+
+    /**
+     * 指定 key 的过期时间
+     *
+     */
+    public void expire(String key, long time) {
+        redisTemplate.expire(key, time, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 根据 key 获取过期时间（-1 即为永不过期）
+     *
+     */
+    public Long ttl(String key) {
+        return redisTemplate.getExpire(key, TimeUnit.SECONDS);
+    }
+
+
+    /**
+     * 判断 key 是否存在
+     *
+     */
+    public Boolean exists(String key) {
+        return redisTemplate.hasKey(key);
+    }
+
+    /**
+     * 删除 key
+     *
+     * @param key 键
+     */
+    public Long del(String... key) {
+        if (key == null || key.length < 1) {
+            return 0L;
+        }
+        return redisTemplate.delete(Arrays.asList(key));
+    }
+
+    /**
+     * 获取 Key 的类型
+     *
+     * @param key 键
+     */
+    public String type(String key) {
+        DataType dataType = redisTemplate.type(key);
+        assert dataType != null;
+        return dataType.code();
+    }
+
+    /**
+     * 批量设置值
+     */
+    public void batchSet(Map<String, Object> map) {
+        redisTemplate.opsForValue().multiSet(map);
+    }
+
+    /**
+     * 批量获取值
+     *
+     */
+    public List<Object> batchGet(List<String> list) {
+        return redisTemplate.opsForValue().multiGet(list);
+    }
+
+    /**
+     *
+     * 获取锁
+     */
+    public boolean setIfAbsent(String key, String value, long expireTime) {
+        Boolean success = redisTemplate.opsForValue().setIfAbsent(key, value, expireTime, TimeUnit.MILLISECONDS);
+        return Boolean.TRUE.equals(success);
+    }
+}
+
+```
+
