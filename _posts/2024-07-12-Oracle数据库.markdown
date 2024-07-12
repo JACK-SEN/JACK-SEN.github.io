@@ -1,0 +1,32 @@
+---
+layout: post
+title:  "模板"
+datetime:   2024-01-08 10:27:26
+categories: 模板
+---
+# 模板标题
+
+
+
+# 字符串日期字段处理
+
+```sql
+SELECT *
+FROM my_table
+WHERE TRUNC(TO_DATE(date_string, 'yyyy-MM-dd HH24:mi:ss')) = TO_DATE('2024-07-10', 'yyyy-MM-dd');
+
+如果字段中日期值有 20240602格式、时间戳格式，2024-06-14 12:12:12，不同格式需要不同处理
+SELECT *
+FROM your_table
+WHERE
+    -- 处理 yyyyMMdd 格式的日期
+    (LENGTH(date_column) = 8 AND TO_DATE(date_column, 'yyyyMMdd') = TO_DATE('2024-06-14', 'yyyy-MM-dd'))
+    OR
+    -- 处理 yyyy-MM-dd HH24:mi:ss 格式的日期
+    (LENGTH(date_column) = 19 AND TRUNC(TO_DATE(date_column, 'yyyy-MM-dd HH24:mi:ss')) = TO_DATE('2024-06-14', 'yyyy-MM-dd'))
+    OR
+    -- 处理时间戳格式的日期（假设时间戳是以秒为单位）
+    (LENGTH(date_column) > 19 AND TRUNC(TO_DATE(TO_CHAR(TO_TIMESTAMP(date_column), 'yyyy-MM-dd HH24:mi:ss'), 'yyyy-MM-dd')) = TO_DATE('2024-06-14', 'yyyy-MM-dd'));
+
+```
+
